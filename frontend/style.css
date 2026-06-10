@@ -222,6 +222,12 @@ video {
     transform: scale(1.1);
 }
 
+/* Стиль для активного (лайкнутого) состояния */
+.like-btn.liked {
+    color: #e53e3e;
+    transform: scale(1.05);
+}
+
 .like-count {
     font-size: 16px;
     color: #666;

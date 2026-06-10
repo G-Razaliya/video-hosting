@@ -5,16 +5,15 @@ interface Video {
     filename: string;
     likes: number;
     uploaded_at: string;
+    user_liked?: boolean;
 }
 
 interface ApiResponse {
     success: boolean;
     message?: string;
     likes?: number;
+    action?: 'liked' | 'unliked';
 }
-
-// ============ GLOBAL VARIABLES ============
-let currentVideos: Video[] = [];
 
 // ============ DOM ELEMENTS ============
 const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
@@ -24,7 +23,10 @@ const uploadForm = document.getElementById('uploadForm') as HTMLFormElement | nu
 const videoTitle = document.getElementById('videoTitle') as HTMLInputElement | null;
 const videoFile = document.getElementById('videoFile') as HTMLInputElement | null;
 
-// ============ FUNCTIONS ============
+// ============ GLOBAL VARIABLES ============
+let currentVideos: Video[] = [];
+
+// ============ LOAD VIDEOS ============
 async function loadVideos(): Promise<void> {
     if (!searchInput || !sortSelect) return;
     
@@ -41,6 +43,7 @@ async function loadVideos(): Promise<void> {
     }
 }
 
+// ============ RENDER VIDEOS ============
 function renderVideos(videos: Video[]): void {
     if (!videosList) return;
     
@@ -49,28 +52,35 @@ function renderVideos(videos: Video[]): void {
         return;
     }
 
-    videosList.innerHTML = videos.map(video => `
-        <div class="video-card" data-id="${video.id}">
-            <div class="video-container">
-                <video controls preload="metadata">
-                    <source src="../backend/videos/${video.filename}" type="video/mp4">
-                    Ваш браузер не поддерживает видео
-                </video>
-            </div>
-            <div class="video-info">
-                <div class="video-title">${escapeHtml(video.title)}</div>
-                <div class="video-stats">
-                    <div class="likes">
-                        <button class="like-btn" onclick="likeVideo(${video.id}, this)">❤️</button>
-                        <span class="like-count">${video.likes}</span>
+    videosList.innerHTML = videos.map(video => {
+        const likedClass = video.user_liked ? 'liked' : '';
+        
+        return `
+            <div class="video-card" data-id="${video.id}">
+                <div class="video-container">
+                    <video controls preload="metadata">
+                        <source src="../backend/videos/${video.filename}" type="video/mp4">
+                        Ваш браузер не поддерживает видео
+                    </video>
+                </div>
+                <div class="video-info">
+                    <div class="video-title">${escapeHtml(video.title)}</div>
+                    <div class="video-stats">
+                        <div class="likes">
+                            <button class="like-btn ${likedClass}" onclick="likeVideo(${video.id}, this)">
+                                ❤️
+                            </button>
+                            <span class="like-count">${video.likes}</span>
+                        </div>
+                        <div class="date">${formatDate(video.uploaded_at)}</div>
                     </div>
-                    <div class="date">${formatDate(video.uploaded_at)}</div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
+// ============ LIKE VIDEO ============
 async function likeVideo(videoId: number, button: HTMLElement): Promise<void> {
     try {
         const response = await fetch('../backend/like.php', {
@@ -86,43 +96,26 @@ async function likeVideo(videoId: number, button: HTMLElement): Promise<void> {
                 likeCount.textContent = result.likes.toString();
             }
             
+            // Меняем внешний вид кнопки
+            if (result.action === 'liked') {
+                button.classList.add('liked');
+            } else if (result.action === 'unliked') {
+                button.classList.remove('liked');
+            }
+            
+            // Обновляем в currentVideos
             const video = currentVideos.find(v => v.id === videoId);
-            if (video) video.likes = result.likes;
+            if (video) {
+                video.likes = result.likes;
+                video.user_liked = (result.action === 'liked');
+            }
         }
     } catch (error) {
         console.error('Ошибка при лайке:', error);
     }
 }
 
-function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU');
-}
-
-function showMessage(elementId: string, message: string, type: 'success' | 'error'): void {
-    const msgDiv = document.getElementById(elementId);
-    if (!msgDiv) return;
-    
-    msgDiv.textContent = message;
-    msgDiv.className = `message ${type}`;
-    
-    setTimeout(() => {
-        msgDiv.className = 'message';
-        msgDiv.textContent = '';
-    }, 3000);
-}
-
-function logout(): void {
-    window.location.href = 'index.html';
-}
-
-// ============ EVENT LISTENERS ============
+// ============ UPLOAD VIDEO ============
 if (uploadForm && videoTitle && videoFile) {
     uploadForm.addEventListener('submit', async (e: Event) => {
         e.preventDefault();
@@ -183,7 +176,7 @@ if (uploadForm && videoTitle && videoFile) {
     });
 }
 
-// Поиск и сортировка
+// ============ SEARCH AND SORT ============
 let searchTimeout: number;
 if (searchInput && sortSelect && videosList) {
     searchInput.addEventListener('input', () => {
@@ -192,10 +185,38 @@ if (searchInput && sortSelect && videosList) {
     });
     sortSelect.addEventListener('change', loadVideos);
     
-    // Загружаем видео при загрузке страницы
     loadVideos();
 }
 
-// Делаем функции глобальными для HTML onclick
+// ============ HELPER FUNCTIONS ============
+function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU');
+}
+
+function showMessage(elementId: string, message: string, type: 'success' | 'error'): void {
+    const msgDiv = document.getElementById(elementId);
+    if (!msgDiv) return;
+    
+    msgDiv.textContent = message;
+    msgDiv.className = `message ${type}`;
+    
+    setTimeout(() => {
+        msgDiv.className = 'message';
+        msgDiv.textContent = '';
+    }, 3000);
+}
+
+function logout(): void {
+    window.location.href = 'index.html';
+}
+
+// ============ GLOBAL FUNCTIONS FOR HTML ============
 (window as any).likeVideo = likeVideo;
 (window as any).logout = logout;

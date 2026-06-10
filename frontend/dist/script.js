@@ -1,6 +1,4 @@
 "use strict";
-// ============ GLOBAL VARIABLES ============
-let currentVideos = [];
 // ============ DOM ELEMENTS ============
 const searchInput = document.getElementById('searchInput');
 const sortSelect = document.getElementById('sortSelect');
@@ -8,7 +6,9 @@ const videosList = document.getElementById('videosList');
 const uploadForm = document.getElementById('uploadForm');
 const videoTitle = document.getElementById('videoTitle');
 const videoFile = document.getElementById('videoFile');
-// ============ FUNCTIONS ============
+// ============ GLOBAL VARIABLES ============
+let currentVideos = [];
+// ============ LOAD VIDEOS ============
 async function loadVideos() {
     if (!searchInput || !sortSelect)
         return;
@@ -24,6 +24,7 @@ async function loadVideos() {
         console.error('Ошибка загрузки видео:', error);
     }
 }
+// ============ RENDER VIDEOS ============
 function renderVideos(videos) {
     if (!videosList)
         return;
@@ -31,27 +32,33 @@ function renderVideos(videos) {
         videosList.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">🎬 Видео не найдены</p>';
         return;
     }
-    videosList.innerHTML = videos.map(video => `
-        <div class="video-card" data-id="${video.id}">
-            <div class="video-container">
-                <video controls preload="metadata">
-                    <source src="../backend/videos/${video.filename}" type="video/mp4">
-                    Ваш браузер не поддерживает видео
-                </video>
-            </div>
-            <div class="video-info">
-                <div class="video-title">${escapeHtml(video.title)}</div>
-                <div class="video-stats">
-                    <div class="likes">
-                        <button class="like-btn" onclick="likeVideo(${video.id}, this)">❤️</button>
-                        <span class="like-count">${video.likes}</span>
+    videosList.innerHTML = videos.map(video => {
+        const likedClass = video.user_liked ? 'liked' : '';
+        return `
+            <div class="video-card" data-id="${video.id}">
+                <div class="video-container">
+                    <video controls preload="metadata">
+                        <source src="../backend/videos/${video.filename}" type="video/mp4">
+                        Ваш браузер не поддерживает видео
+                    </video>
+                </div>
+                <div class="video-info">
+                    <div class="video-title">${escapeHtml(video.title)}</div>
+                    <div class="video-stats">
+                        <div class="likes">
+                            <button class="like-btn ${likedClass}" onclick="likeVideo(${video.id}, this)">
+                                ❤️
+                            </button>
+                            <span class="like-count">${video.likes}</span>
+                        </div>
+                        <div class="date">${formatDate(video.uploaded_at)}</div>
                     </div>
-                    <div class="date">${formatDate(video.uploaded_at)}</div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
+// ============ LIKE VIDEO ============
 async function likeVideo(videoId, button) {
     try {
         const response = await fetch('../backend/like.php', {
@@ -65,39 +72,26 @@ async function likeVideo(videoId, button) {
             if (likeCount) {
                 likeCount.textContent = result.likes.toString();
             }
+            // Меняем внешний вид кнопки
+            if (result.action === 'liked') {
+                button.classList.add('liked');
+            }
+            else if (result.action === 'unliked') {
+                button.classList.remove('liked');
+            }
+            // Обновляем в currentVideos
             const video = currentVideos.find(v => v.id === videoId);
-            if (video)
+            if (video) {
                 video.likes = result.likes;
+                video.user_liked = (result.action === 'liked');
+            }
         }
     }
     catch (error) {
         console.error('Ошибка при лайке:', error);
     }
 }
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU');
-}
-function showMessage(elementId, message, type) {
-    const msgDiv = document.getElementById(elementId);
-    if (!msgDiv)
-        return;
-    msgDiv.textContent = message;
-    msgDiv.className = `message ${type}`;
-    setTimeout(() => {
-        msgDiv.className = 'message';
-        msgDiv.textContent = '';
-    }, 3000);
-}
-function logout() {
-    window.location.href = 'index.html';
-}
-// ============ EVENT LISTENERS ============
+// ============ UPLOAD VIDEO ============
 if (uploadForm && videoTitle && videoFile) {
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -153,7 +147,7 @@ if (uploadForm && videoTitle && videoFile) {
         }
     });
 }
-// Поиск и сортировка
+// ============ SEARCH AND SORT ============
 let searchTimeout;
 if (searchInput && sortSelect && videosList) {
     searchInput.addEventListener('input', () => {
@@ -161,9 +155,32 @@ if (searchInput && sortSelect && videosList) {
         searchTimeout = setTimeout(loadVideos, 500);
     });
     sortSelect.addEventListener('change', loadVideos);
-    // Загружаем видео при загрузке страницы
     loadVideos();
 }
-// Делаем функции глобальными для HTML onclick
+// ============ HELPER FUNCTIONS ============
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU');
+}
+function showMessage(elementId, message, type) {
+    const msgDiv = document.getElementById(elementId);
+    if (!msgDiv)
+        return;
+    msgDiv.textContent = message;
+    msgDiv.className = `message ${type}`;
+    setTimeout(() => {
+        msgDiv.className = 'message';
+        msgDiv.textContent = '';
+    }, 3000);
+}
+function logout() {
+    window.location.href = 'index.html';
+}
+// ============ GLOBAL FUNCTIONS FOR HTML ============
 window.likeVideo = likeVideo;
 window.logout = logout;
