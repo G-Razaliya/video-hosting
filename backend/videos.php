@@ -23,7 +23,6 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute(['search' => "%$search%"]);
 $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Добавляем информацию, лайкнул ли текущий пользователь каждое видео
 session_start();
 $user_id = $_SESSION['user_id'] ?? 0;
 

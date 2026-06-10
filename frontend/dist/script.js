@@ -8,6 +8,87 @@ const videoTitle = document.getElementById('videoTitle');
 const videoFile = document.getElementById('videoFile');
 // ============ GLOBAL VARIABLES ============
 let currentVideos = [];
+// ============ START VIDEO ============
+function startVideo(videoId) {
+    const video = document.getElementById(`video-${videoId}`);
+    const container = document.querySelector(`.video-container[data-video-id="${videoId}"]`);
+    if (!video || !container)
+        return;
+    // Останавливаем все другие видео
+    document.querySelectorAll('video').forEach(otherVideo => {
+        if (otherVideo.id !== `video-${videoId}`) {
+            otherVideo.pause();
+            const otherId = otherVideo.id.replace('video-', '');
+            const otherContainer = document.querySelector(`.video-container[data-video-id="${otherId}"]`);
+            if (otherContainer) {
+                otherContainer.classList.remove('playing');
+            }
+        }
+    });
+    // Запускаем текущее видео
+    video.play();
+    container.classList.add('playing');
+    video.controls = true; // Показываем стандартный проигрыватель
+}
+// ============ SETUP VIDEO CLICK ============
+function setupVideoClick() {
+    // Клик по оверлею Play
+    document.querySelectorAll('.play-overlay').forEach(overlay => {
+        overlay.removeEventListener('click', (e) => { });
+        overlay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const container = overlay.closest('.video-container');
+            const videoId = container?.dataset.videoId;
+            if (videoId) {
+                startVideo(videoId);
+            }
+        });
+    });
+    // Клик по контейнеру (на само видео)
+    document.querySelectorAll('.video-container').forEach(container => {
+        container.removeEventListener('click', (e) => { });
+        container.addEventListener('click', (e) => {
+            // Если кликнули не по оверлею
+            if (!e.target.classList.contains('play-overlay')) {
+                const videoId = container.dataset.videoId;
+                if (videoId) {
+                    startVideo(videoId);
+                }
+            }
+        });
+    });
+}
+// ============ SETUP VIDEO EVENTS ============
+function setupVideoEvents() {
+    document.querySelectorAll('video').forEach(video => {
+        video.removeEventListener('ended', () => { });
+        video.removeEventListener('pause', () => { });
+        video.removeEventListener('play', () => { });
+        video.addEventListener('ended', () => {
+            const videoId = video.id.replace('video-', '');
+            const container = document.querySelector(`.video-container[data-video-id="${videoId}"]`);
+            if (container) {
+                container.classList.remove('playing');
+            }
+            video.controls = false;
+        });
+        video.addEventListener('pause', () => {
+            const videoId = video.id.replace('video-', '');
+            const container = document.querySelector(`.video-container[data-video-id="${videoId}"]`);
+            if (container && !video.ended) {
+                container.classList.remove('playing');
+            }
+        });
+        video.addEventListener('play', () => {
+            const videoId = video.id.replace('video-', '');
+            const container = document.querySelector(`.video-container[data-video-id="${videoId}"]`);
+            if (container) {
+                container.classList.add('playing');
+            }
+            video.controls = true;
+        });
+    });
+}
 // ============ LOAD VIDEOS ============
 async function loadVideos() {
     if (!searchInput || !sortSelect)
@@ -19,6 +100,8 @@ async function loadVideos() {
         const videos = await response.json();
         currentVideos = videos;
         renderVideos(videos);
+        setupVideoClick();
+        setupVideoEvents();
     }
     catch (error) {
         console.error('Ошибка загрузки видео:', error);
@@ -34,20 +117,22 @@ function renderVideos(videos) {
     }
     videosList.innerHTML = videos.map(video => {
         const likedClass = video.user_liked ? 'liked' : '';
+        const heartIcon = video.user_liked ? '❤️' : '♡';
         return `
             <div class="video-card" data-id="${video.id}">
-                <div class="video-container">
-                    <video controls preload="metadata">
+                <div class="video-container" data-video-id="${video.id}">
+                    <video id="video-${video.id}" preload="metadata" playsinline>
                         <source src="../backend/videos/${video.filename}" type="video/mp4">
                         Ваш браузер не поддерживает видео
                     </video>
+                    <div class="play-overlay">▶</div>
                 </div>
                 <div class="video-info">
                     <div class="video-title">${escapeHtml(video.title)}</div>
                     <div class="video-stats">
                         <div class="likes">
                             <button class="like-btn ${likedClass}" onclick="likeVideo(${video.id}, this)">
-                                ❤️
+                                ${heartIcon}
                             </button>
                             <span class="like-count">${video.likes}</span>
                         </div>
@@ -72,14 +157,14 @@ async function likeVideo(videoId, button) {
             if (likeCount) {
                 likeCount.textContent = result.likes.toString();
             }
-            // Меняем внешний вид кнопки
             if (result.action === 'liked') {
                 button.classList.add('liked');
+                button.textContent = '❤️';
             }
             else if (result.action === 'unliked') {
                 button.classList.remove('liked');
+                button.textContent = '♡';
             }
-            // Обновляем в currentVideos
             const video = currentVideos.find(v => v.id === videoId);
             if (video) {
                 video.likes = result.likes;

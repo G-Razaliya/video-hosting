@@ -24,20 +24,17 @@ if (!$video_id) {
     exit;
 }
 
-// Проверяем, есть ли уже лайк
 $stmt = $pdo->prepare("SELECT id FROM video_likes WHERE user_id = ? AND video_id = ?");
 $stmt->execute([$user_id, $video_id]);
 $existing = $stmt->fetch();
 
 if ($existing) {
-    // Удаляем лайк
     $stmt = $pdo->prepare("DELETE FROM video_likes WHERE user_id = ? AND video_id = ?");
     $stmt->execute([$user_id, $video_id]);
     $stmt = $pdo->prepare("UPDATE videos SET likes = likes - 1 WHERE id = ?");
     $stmt->execute([$video_id]);
     $action = 'unliked';
 } else {
-    // Добавляем лайк
     $stmt = $pdo->prepare("INSERT INTO video_likes (user_id, video_id) VALUES (?, ?)");
     $stmt->execute([$user_id, $video_id]);
     $stmt = $pdo->prepare("UPDATE videos SET likes = likes + 1 WHERE id = ?");
@@ -45,7 +42,6 @@ if ($existing) {
     $action = 'liked';
 }
 
-// Получаем новое количество лайков
 $stmt = $pdo->prepare("SELECT likes FROM videos WHERE id = ?");
 $stmt->execute([$video_id]);
 $likes = $stmt->fetchColumn();
