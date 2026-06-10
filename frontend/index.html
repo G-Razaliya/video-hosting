@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Видеохостинг - Вход</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Специальные стили только для страницы входа */
+        .auth-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 400px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            margin: 100px auto;
+        }
+        .auth-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .form-box {
+            margin-bottom: 30px;
+        }
+        .form-box h2 {
+            margin-bottom: 15px;
+            color: #667eea;
+            font-size: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h1>🎬 Видеохостинг</h1>
+        
+        <div class="form-box">
+            <h2>🔐 Вход</h2>
+            <form id="loginForm">
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Пароль" required>
+                <button type="submit">Войти</button>
+            </form>
+            <div id="loginMessage" class="message"></div>
+        </div>
+
+        <div class="form-box">
+            <h2>📝 Регистрация</h2>
+            <form id="registerForm">
+                <input type="email" id="regEmail" placeholder="Email" required>
+                <input type="password" id="regPassword" placeholder="Пароль" required>
+                <button type="submit">Зарегистрироваться</button>
+            </form>
+            <div id="regMessage" class="message"></div>
+        </div>
+    </div>
+
+    <script>
+        // Регистрация
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+
+            const formData = new URLSearchParams();
+            formData.append('action', 'register');
+            formData.append('email', email);
+            formData.append('password', password);
+
+            try {
+                const response = await fetch('../backend/auth.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+                const result = await response.json();
+                const msgDiv = document.getElementById('regMessage');
+                msgDiv.textContent = result.message;
+                msgDiv.className = 'message ' + (result.success ? 'success' : 'error');
+                if (result.success) {
+                    document.getElementById('regEmail').value = '';
+                    document.getElementById('regPassword').value = '';
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+            }
+        });
+
+        // Вход
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const formData = new URLSearchParams();
+            formData.append('action', 'login');
+            formData.append('email', email);
+            formData.append('password', password);
+
+            try {
+                const response = await fetch('../backend/auth.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+                const result = await response.json();
+                const msgDiv = document.getElementById('loginMessage');
+                msgDiv.textContent = result.message;
+                msgDiv.className = 'message ' + (result.success ? 'success' : 'error');
+                
+                if (result.success) {
+                    window.location.href = 'dashboard.html';
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+            }
+        });
+    </script>
+</body>
+</html>
